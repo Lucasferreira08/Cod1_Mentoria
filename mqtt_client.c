@@ -18,11 +18,16 @@
 #include "lwip/dns.h"               // Biblioteca que fornece funções e recursos suporte DNS:
 #include "lwip/altcp_tls.h"         // Biblioteca que fornece funções e recursos para conexões seguras usando TLS:
 
-#define WIFI_SSID "SEU_SSID"                  // Substitua pelo nome da sua rede Wi-Fi
-#define WIFI_PASSWORD "SEU_PASSORD_WIFI"      // Substitua pela senha da sua rede Wi-Fi
-#define MQTT_SERVER "SEU_HOST"                // Substitua pelo endereço do host - broket MQTT: Ex: 192.168.1.107
-#define MQTT_USERNAME "SEU_USERNAME_MQTT"     // Substitua pelo nome da host MQTT - Username
-#define MQTT_PASSWORD "SEU_PASSWORD_MQTT"     // Substitua pelo Password da host MQTT - credencial de acesso - caso exista
+#include "matriz.h"
+
+#define WIFI_SSID "..."                  // Substitua pelo nome da sua rede Wi-Fi
+#define WIFI_PASSWORD "jorgecalvo"      // Substitua pela senha da sua rede Wi-Fi
+#define MQTT_SERVER "192.168.26.58"                // Substitua pelo endereço do host - broket MQTT: Ex: 192.168.1.107
+#define MQTT_USERNAME "admin"     // Substitua pelo nome da host MQTT - Username
+#define MQTT_PASSWORD "qjEycU4w"     // Substitua pelo Password da host MQTT - credencial de acesso - caso exista
+
+const uint MOTOR_PIN    = 16; // Example: GPIO16 for Motor Control
+const uint LED_PIN      = 12; // Example: GPIO12 for an LED indicator
 
 // Definição da escala de temperatura
 #ifndef TEMPERATURE_UNITS
@@ -99,6 +104,8 @@ typedef struct {
 #define MQTT_UNIQUE_TOPIC 0
 #endif
 
+int estado = 0;
+
 /* References for this implementation:
  * raspberry-pi-pico-c-sdk.pdf, Section '4.1.1. hardware_adc'
  * pico-examples/adc/adc_console/adc_console.c */
@@ -151,6 +158,19 @@ int main(void) {
     // Inicializa todos os tipos de bibliotecas stdio padrão presentes que estão ligados ao binário.
     stdio_init_all();
     INFO_printf("mqtt client starting\n");
+
+    PIO pio = pio0;
+    uint sm = pio_init(pio);
+
+    // --- Initialize Motor GPIO ---
+    gpio_init(MOTOR_PIN);
+    gpio_set_dir(MOTOR_PIN, GPIO_OUT);
+    gpio_put(MOTOR_PIN, 0); // Ensure motor starts OFF
+
+    // --- Initialize LED GPIO ---
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
+    gpio_put(LED_PIN, 0); // Ensure LED starts OFF
 
     // Inicializa o conversor ADC
     adc_init();
@@ -283,10 +303,18 @@ static const char *full_topic(MQTT_CLIENT_DATA_T *state, const char *name) {
 static void control_led(MQTT_CLIENT_DATA_T *state, bool on) {
     // Publish state on /state topic and on/off led board
     const char* message = on ? "On" : "Off";
-    if (on)
+    if (on) {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
-    else
+        gpio_put(MOTOR_PIN, 1);
+        gpio_put(LED_PIN, 1);
+        estado = 1;
+    }
+    else {
         cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 0);
+        gpio_put(MOTOR_PIN, 0);
+        gpio_put(LED_PIN, 0);
+        estado = 0;
+    }
 
     mqtt_publish(state->mqtt_client_inst, full_topic(state, "/led/state"), message, strlen(message), MQTT_PUBLISH_QOS, MQTT_PUBLISH_RETAIN, pub_request_cb, state);
 }

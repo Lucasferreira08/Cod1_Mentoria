@@ -35,7 +35,10 @@ pico_sdk_init()
 
 # Add executable. Default name is the project name, version 0.1
 
-add_executable(mqtt_client mqtt_client.c )
+add_executable(mqtt_client mqtt_client.c 
+                ${CMAKE_CURRENT_LIST_DIR}/matriz.c)
+
+pico_generate_pio_header(${PROJECT_NAME} ${CMAKE_CURRENT_LIST_DIR}/pio_matriz.pio)
 
 pico_set_program_name(mqtt_client "mqtt_client")
 pico_set_program_version(mqtt_client "0.1")
@@ -61,7 +64,9 @@ target_include_directories(mqtt_client PRIVATE
 
 # Add any user requested libraries
 target_link_libraries(mqtt_client 
-        
+        hardware_pwm
+        hardware_pio
+        hardware_clocks
         )
 
 pico_add_extra_outputs(mqtt_client)
