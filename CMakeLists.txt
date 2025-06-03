@@ -27,6 +27,8 @@ set(PICO_BOARD pico_w CACHE STRING "Board type")
 
 # Pull in Raspberry Pi Pico SDK (must be before project)
 include(pico_sdk_import.cmake)
+set(FREERTOS_KERNEL_PATH "C:/Users/Miller/Desktop/Univasf/Semestre III/Embarca/FreeRTOS-Kernel")
+include(${FREERTOS_KERNEL_PATH}/portable/ThirdParty/GCC/RP2040/FreeRTOS_Kernel_import.cmake)
 
 project(mqtt_client C CXX ASM)
 
@@ -63,7 +65,9 @@ target_include_directories(mqtt_client PRIVATE
 )
 
 # Add any user requested libraries
-target_link_libraries(mqtt_client 
+target_link_libraries(mqtt_client
+        FreeRTOS-Kernel         # Kernel do FreeRTOS
+        FreeRTOS-Kernel-Heap4   # Gerenciador de memoria
         hardware_pwm
         hardware_pio
         hardware_clocks

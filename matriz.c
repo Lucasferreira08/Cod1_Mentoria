@@ -4,8 +4,6 @@
 #define NUM_PIXELS 25
 #define OUT_PIN 7
 
-int num = 1;
-
 // Luz vermelha (parte superior do semáforo)
 static double desenho_alerta1[25] = {0.0, 0.0, 1.0, 0.0, 0.0,
                                     0.0, 0.0, 1.0, 0.0, 0.0, 
@@ -32,26 +30,73 @@ static double desenho_alerta4[25] = {1.0, 0.0, 0.0, 0.0, 0.0,
                                     0.0, 0.0, 0.0, 1.0, 0.0,
                                     0.0, 0.0, 0.0, 0.0, 1.0};
 
-// // Luz amarela (parte central do semáforo)
-// static double desenho_amarelo[25] = {0.0, 0.0, 0.0, 0.0, 0.0,
-//                              0.0, 0.0, 0.0, 0.0, 0.0, 
-//                              0.0, 1.0, 1.0, 1.0, 0.0,
-//                              0.0, 0.0, 0.0, 0.0, 0.0,
-//                              0.0, 0.0, 0.0, 0.0, 0.0};
-
-// // Luz verde (parte inferior do semáforo)
-// static double desenho_verde[25] =   {0.0, 0.0, 0.0, 0.0, 0.0,
-//                              0.0, 0.0, 0.0, 0.0, 0.0, 
-//                              0.0, 0.0, 0.0, 0.0, 0.0,
-//                              0.0, 1.0, 1.0, 1.0, 0.0,
-//                              0.0, 0.0, 0.0, 0.0, 0.0};
-
 // Estrutura do semáforo completo (para visualização)
 static double apagar[25] = {0.0, 0.0, 0.0, 0.0, 0.0,
                               0.0, 0.0, 0.0, 0.0, 0.0, 
                               0.0, 0.0, 0.0, 0.0, 0.0,
                               0.0, 0.0, 0.0, 0.0, 0.0,
                               0.0, 0.0, 0.0, 0.0, 0.0};
+
+// --- Frames para a Animação da Ventoinha ---
+static double ventoinha_frame_1[NUM_PIXELS] = { // "|"
+    0.0, 0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0, 0.0
+};
+
+static double ventoinha_frame_2[NUM_PIXELS] = { // "/"
+    0.0, 0.0, 0.0, 0.0, 1.0,
+    0.0, 1.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 1.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 1.0, 0.0,
+    1.0, 0.0, 0.0, 0.0, 0.0
+};
+
+static double ventoinha_frame_3[NUM_PIXELS] = { // "-"
+    0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0,
+    1.0, 1.0, 1.0, 1.0, 1.0,
+    0.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 0.0
+};
+
+static double ventoinha_frame_4[NUM_PIXELS] = { // "\"
+    1.0, 0.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 1.0, 0.0,
+    0.0, 0.0, 1.0, 0.0, 0.0,
+    0.0, 1.0, 0.0, 0.0, 0.0,
+    0.0, 0.0, 0.0, 0.0, 1.0
+};
+
+// Vetor de ponteiros para os frames da animação (esta é a variável "global" que você queria)
+// "static" a torna global apenas dentro de matriz.c
+static double* animacao_ventoinha_frames[] = {
+    ventoinha_frame_1,
+    ventoinha_frame_2,
+    ventoinha_frame_3,
+    ventoinha_frame_4
+};
+static const int VENTOINHA_NUM_TOTAL_FRAMES = sizeof(animacao_ventoinha_frames) / sizeof(animacao_ventoinha_frames[0]);
+static int ventoinha_frame_atual_idx = 0; // Índice para controlar qual frame exibir
+
+// Função para desenhar o próximo frame da animação da ventoinha
+void animacao_ventoinha_desenhar_proximo_frame(PIO pio, uint sm, double r, double g, double b) {
+    uint32_t valor_led_dummy = 0; // O valor real é definido dentro de desenho_pio
+
+    // Pega o ponteiro para o padrão do frame atual
+    double* padrao_frame_atual = animacao_ventoinha_frames[ventoinha_frame_atual_idx];
+
+    // Usa sua função existente para desenhar o padrão com a cor especificada
+    desenho_pio(padrao_frame_atual, valor_led_dummy, pio, sm, r, g, b);
+
+    // Avança para o próximo frame, voltando ao início se necessário
+    ventoinha_frame_atual_idx++;
+    if (ventoinha_frame_atual_idx >= VENTOINHA_NUM_TOTAL_FRAMES) {
+        ventoinha_frame_atual_idx = 0;
+    }
+}
 
 // Rotina para definir a intensidade das cores do LED (RGB)
 uint32_t matrix_rgb(double b, double r, double g)
@@ -86,35 +131,6 @@ void apagar_matriz(PIO pio, uint sm)
     desenho_pio(apagar, valor_led, pio, sm, 0.0, 0.0, 0.0); // Vermelho (r=1.0)
 }
 
-// Função para exibir o semáforo na matriz de LEDs
-void desenhar_alerta(PIO pio, uint sm)
-{
-    uint32_t valor_led;
-
-    if (num==1)
-    {
-        desenho_pio(desenho_alerta1, valor_led, pio, sm, 0.1, 0.0, 0.0); // Vermelho (r=1.0)
-        apagar_matriz( pio,  sm);
-    }
-    else if (num==2)
-    {
-        desenho_pio(desenho_alerta2, valor_led, pio, sm, 0.1, 0.0, 0.0); // Vermelho (r=1.0)
-        apagar_matriz( pio,  sm);
-    }
-    else if (num==3)
-    {
-        desenho_pio(desenho_alerta3, valor_led, pio, sm, 0.1, 0.0, 0.0); // Vermelho (r=1.0)
-        apagar_matriz( pio,  sm);
-    }
-    else if (num==4)
-    {
-        desenho_pio(desenho_alerta4, valor_led, pio, sm, 0.1, 0.0, 0.0); // Vermelho (r=1.0)
-        apagar_matriz( pio,  sm);
-        num=0;
-    }
-
-    num++;
-}
 
 uint pio_init(PIO pio)
 {
