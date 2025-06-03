@@ -18,16 +18,21 @@
 #include "lwip/dns.h"               // Biblioteca que fornece funções e recursos suporte DNS:
 #include "lwip/altcp_tls.h"         // Biblioteca que fornece funções e recursos para conexões seguras usando TLS:
 
+#include "FreeRTOS.h"
+#include "task.h"
+
 #include "matriz.h"
 
-#define WIFI_SSID "..."                  // Substitua pelo nome da sua rede Wi-Fi
-#define WIFI_PASSWORD "jorgecalvo"      // Substitua pela senha da sua rede Wi-Fi
-#define MQTT_SERVER "192.168.26.58"                // Substitua pelo endereço do host - broket MQTT: Ex: 192.168.1.107
+#define WIFI_SSID "Guilherme 2.4"                  // Substitua pelo nome da sua rede Wi-Fi
+#define WIFI_PASSWORD "Cardoso1203"      // Substitua pela senha da sua rede Wi-Fi
+#define MQTT_SERVER "192.168.100.249"                // Substitua pelo endereço do host - broket MQTT: Ex: 192.168.1.107
 #define MQTT_USERNAME "admin"     // Substitua pelo nome da host MQTT - Username
 #define MQTT_PASSWORD "qjEycU4w"     // Substitua pelo Password da host MQTT - credencial de acesso - caso exista
 
 const uint MOTOR_PIN    = 16; // Example: GPIO16 for Motor Control
 const uint LED_PIN      = 12; // Example: GPIO12 for an LED indicator
+
+volatile bool estado = false;    // Variável de Estado
 
 // Definição da escala de temperatura
 #ifndef TEMPERATURE_UNITS
@@ -104,7 +109,7 @@ typedef struct {
 #define MQTT_UNIQUE_TOPIC 0
 #endif
 
-int estado = 0;
+
 
 /* References for this implementation:
  * raspberry-pi-pico-c-sdk.pdf, Section '4.1.1. hardware_adc'
@@ -153,30 +158,26 @@ static void start_client(MQTT_CLIENT_DATA_T *state);
 // Call back com o resultado do DNS
 static void dns_found(const char *hostname, const ip_addr_t *ipaddr, void *arg);
 
-int main(void) {
-
-    // Inicializa todos os tipos de bibliotecas stdio padrão presentes que estão ligados ao binário.
-    stdio_init_all();
-    INFO_printf("mqtt client starting\n");
-
+// Função para Task da Matriz
+void vTaskMatriz(){
     PIO pio = pio0;
     uint sm = pio_init(pio);
 
-    // --- Initialize Motor GPIO ---
-    gpio_init(MOTOR_PIN);
-    gpio_set_dir(MOTOR_PIN, GPIO_OUT);
-    gpio_put(MOTOR_PIN, 0); // Ensure motor starts OFF
+    while(1){
 
-    // --- Initialize LED GPIO ---
-    gpio_init(LED_PIN);
-    gpio_set_dir(LED_PIN, GPIO_OUT);
-    gpio_put(LED_PIN, 0); // Ensure LED starts OFF
+        if(estado){
+            animacao_ventoinha_desenhar_proximo_frame(pio0, sm, 0.1, 0.0, 0.0);
+            vTaskDelay(pdMS_TO_TICKS(200));
+        }
+        else{
+            apagar_matriz(pio0, sm);
+        }
+        vTaskDelay(pdMS_TO_TICKS(50));
+    }
+}
 
-    // Inicializa o conversor ADC
-    adc_init();
-    adc_set_temp_sensor_enabled(true);
-    adc_select_input(4);
-
+// Função para o Protocolo MQTT
+void vTaskMQTT(){
     // Cria registro com os dados do cliente
     static MQTT_CLIENT_DATA_T state;
 
@@ -258,7 +259,35 @@ int main(void) {
     }
 
     INFO_printf("mqtt client exiting\n");
-    return 0;
+}
+
+int main(void) {
+
+    // Inicializa todos os tipos de bibliotecas stdio padrão presentes que estão ligados ao binário.
+    stdio_init_all();
+    INFO_printf("mqtt client starting\n");
+
+    // --- Initialize Motor GPIO ---
+    gpio_init(MOTOR_PIN);
+    gpio_set_dir(MOTOR_PIN, GPIO_OUT);
+    gpio_put(MOTOR_PIN, 0); // Ensure motor starts OFF
+
+    // --- Initialize LED GPIO ---
+    gpio_init(LED_PIN);
+    gpio_set_dir(LED_PIN, GPIO_OUT);
+    gpio_put(LED_PIN, 0); // Ensure LED starts OFF
+
+    // Inicializa o conversor ADC
+    adc_init();
+    adc_set_temp_sensor_enabled(true);
+    adc_select_input(4);
+
+    // Cria tarefas 
+    xTaskCreate(vTaskMatriz, "Task da Matriz", configMINIMAL_STACK_SIZE + 128, NULL, 1, NULL);
+    xTaskCreate(vTaskMQTT, "Task do MQTT", configMINIMAL_STACK_SIZE + 128, NULL, 1, NULL);
+    
+    vTaskStartScheduler();
+    panic_unsupported();
 }
 
 /* References for this implementation:
